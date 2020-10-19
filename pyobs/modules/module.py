@@ -1,3 +1,4 @@
+import datetime
 import inspect
 import logging
 import threading
@@ -7,7 +8,6 @@ from astropy.coordinates import EarthLocation
 from astroplan import Observer
 import pytz
 
-from pyobs.environment import Environment
 from pyobs.comm import Comm
 from pyobs.object import get_object
 from pyobs.vfs import VirtualFileSystem
@@ -76,7 +76,8 @@ class Module:
     """Base class for all pyobs modules."""
 
     def __init__(self, name: str = None, comm: Union[Comm, dict] = None, vfs: Union[VirtualFileSystem, dict] = None,
-                 timezone: str = 'utc', location: Union[str, dict] = None, *args, **kwargs):
+                 timezone: Union[str, datetime.tzinfo] = 'utc', location: Union[str, dict, EarthLocation] = None,
+                 *args, **kwargs):
         """Initializes a new pyobs module.
 
         Args:
@@ -114,12 +115,19 @@ class Module:
             self.vfs = VirtualFileSystem()
 
         # timezone
-        self.timezone = pytz.timezone(timezone)
+        if isinstance(timezone, datetime.tzinfo):
+            self.timezone = timezone
+        elif isinstance(timezone, str):
+            self.timezone = pytz.timezone(timezone)
+        else:
+            raise ValueError('Unknown format for timezone.')
         log.info('Using timezone %s.', timezone)
 
         # location
         if location is None:
             self.location = None
+        elif isinstance(location, EarthLocation):
+            self.location = location
         elif isinstance(location, str):
             self.location = EarthLocation.of_site(location)
         elif isinstance(location, dict):
@@ -380,8 +388,47 @@ class MultiModule(Module):
         """
         Module.__init__(self, name='multi', *args, **kwargs)
 
-        # modules
-        self._modules = modules
+        # create modules
+        self._modules = {}
+        for name, mod in modules.items():
+            # what is it?
+            if isinstance(mod, Module):
+                # it's a module already, store it
+                self._modules[name] = mod
+            elif isinstance(mod, dict):
+                # dictionary, create it
+                module = get_object(mod, comm=self.comm, vfs=self.vfs, timezone=self.timezone, location=self.location)
+                self._modules[name] = module
+
+    def open(self):
+        """Open module."""
+
+        # open all modules
+        for name, mod in self._modules.items():
+            log.info('Opening module %s...', name)
+            mod.open()
+
+        # open base
+        Module.open(self)
+
+    def close(self):
+        """Close module."""
+
+        # close all modules
+        for name, mod in self._modules.items():
+            log.info('Closing module %s...', name)
+            mod.close()
+
+        # close base
+        Module.close(self)
+
+    def __contains__(self, name: str) -> bool:
+        """Checks, whether this multi-module contains a module of given name."""
+        return name in self._modules
+
+    def __getitem__(self, name: str) -> Module:
+        """Returns module of given name."""
+        return self._modules[name]
 
 
 __all__ = ['Module', 'MultiModule', 'timeout']

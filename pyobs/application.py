@@ -124,6 +124,7 @@ class Application:
             # create module and open it
             log.info('Creating module...')
             self._module = get_object(cfg, comm=self._comm)   # type: Module
+            self._comm.module = self._module
             log.info('Opening module...')
             self._module.open()
             log.info('Started successfully.')

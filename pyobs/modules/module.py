@@ -76,8 +76,7 @@ class Module:
     """Base class for all pyobs modules."""
 
     def __init__(self, name: str = None, comm: Union[Comm, dict] = None, vfs: Union[VirtualFileSystem, dict] = None,
-                 timezone: str = 'utc', location: Union[str, dict] = None, plugins: list = None,
-                 *args, **kwargs):
+                 timezone: str = 'utc', location: Union[str, dict] = None, *args, **kwargs):
         """Initializes a new pyobs module.
 
         Args:
@@ -86,7 +85,6 @@ class Module:
             vfs: VFS to use (either object or config)
             timezone: Timezone at observatory.
             location: Location of observatory, either a name or a dict containing latitude, longitude, and elevation.
-            plugins: List of plugins to start.
         """
 
         # an event that will be fired when closing the module
@@ -137,15 +135,6 @@ class Module:
                      self.location.lon, self.location.lat, self.location.height)
             self.observer = Observer(location=self.location, timezone=timezone)
 
-        # plugins
-        self._plugins = []
-        if plugins:
-            for cfg in plugins.values():
-                plg = get_object(cfg)   # Type: PyObsModule
-                plg.comm = self.comm
-                plg.observer = self.observer
-                self._plugins.append(plg)
-
         # opened?
         self._opened = False
 
@@ -172,12 +161,6 @@ class Module:
     def open(self):
         """Open module."""
 
-        # open plugins
-        if self._plugins:
-            log.info('Opening plugins...')
-            for plg in self._plugins:
-                plg.open()
-
         # start threads and watchdog
         for thread, (target, _) in self._threads.items():
             log.info('Starting thread for %s...', target.__name__)
@@ -202,12 +185,6 @@ class Module:
         if self._watchdog and self._watchdog.is_alive():
             self._watchdog.join()
         [t.join() for t in self._threads.keys() if t.is_alive()]
-
-        # close plugins
-        if self._plugins:
-            log.info('Closing plugins...')
-            for plg in self._plugins:
-                plg.close()
 
     def proxy(self, name_or_object: Union[str, object], obj_type: Type = None):
         """Returns object directly if it is of given type. Otherwise get proxy of client with given name and check type.

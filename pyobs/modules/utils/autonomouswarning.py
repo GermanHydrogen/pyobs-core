@@ -76,7 +76,7 @@ class AutonomousWarning(Module):
 
         while not self.closing.is_set():
             # check for autonomous modules
-            autonomous = list(self.comm.clients_with_interface(IAutonomous))
+            autonomous = list(self.comm.modules_with_interface(IAutonomous))
             is_auto = any([self.comm[a].is_running().wait() for a in autonomous])
 
             # did it change?
@@ -97,7 +97,7 @@ class AutonomousWarning(Module):
             # does file exist?
             if self._trigger_file is not None and os.path.exists(self._trigger_file):
                 # check for autonomous modules
-                autonomous = list(self.comm.clients_with_interface(IAutonomous))
+                autonomous = list(self.comm.modules_with_interface(IAutonomous))
                 is_auto = any([self.comm[a].is_running().wait() for a in autonomous])
 
                 # play sound

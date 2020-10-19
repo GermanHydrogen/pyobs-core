@@ -211,7 +211,7 @@ class Application:
         """
 
         # loop IConfigProviders
-        for client in comm.clients_with_interface(IConfigProvider):
+        for client in comm.modules_with_interface(IConfigProvider):
             try:
                 # get proxy
                 proxy = comm[client]  # type: IConfigProvider

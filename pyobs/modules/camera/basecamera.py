@@ -323,7 +323,7 @@ class BaseCamera(Module, ICamera, IAbortable):
         fits_header_futures = {}
         if self.comm:
             # get clients that provide fits headers
-            clients = self.comm.clients_with_interface(IFitsHeaderProvider)
+            clients = self.comm.modules_with_interface(IFitsHeaderProvider)
 
             # create and run a threads in which the fits headers are fetched
             for client in clients:

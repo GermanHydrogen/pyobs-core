@@ -1,5 +1,11 @@
 ## Changelog
 
+### v0.12
+
+* Renamed PyObsModule to Module.
+* Introduced MultiModule, which allows for running multiple modules in a single process.
+
+
 ### v0.11 (2020-10-18)
 
 * Major changes to robotic system based on LCO portal.

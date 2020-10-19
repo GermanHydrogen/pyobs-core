@@ -39,7 +39,7 @@ class RPC(object):
         client.add_event_handler('jabber_rpc_error', self._on_jabber_rpc_error)
 
         # register handler
-        self._methods = dict(handler.methods) if handler else {}
+        self.set_handler(handler)
 
     def set_handler(self, handler: Module = None):
         """Set the handler for remote procedure calls to this client.
@@ -52,13 +52,13 @@ class RPC(object):
         self._handler = handler
 
         # update methods
-        self._methods = dict(handler.methods) if handler else {}
+        self._methods = handler.methods if handler is not None else {}
 
-    def call(self, target_jid, method, *args) -> Future:
+    def call(self, jid, method, *args) -> Future:
         """Call a method on a remote host.
 
         Args:
-            target_jid: Target JID to call method on.
+            jid: Target JID to call method on.
             method: Name of method to call.
             *args: Parameters for method.
 
@@ -66,8 +66,10 @@ class RPC(object):
             Future for response.
         """
 
+        # split username and
+
         # create the method call
-        iq = self._client.plugin['xep_0009'].make_iq_method_call(target_jid, method, py2xml(*args))
+        iq = self._client.plugin['xep_0009'].make_iq_method_call(jid, method, py2xml(*args))
 
         # create a future for this
         pid = iq['id']

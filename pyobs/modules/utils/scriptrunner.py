@@ -27,7 +27,7 @@ class ScriptRunner(Module, IScriptRunner):
         """
 
         # get all proxies
-        proxies = {p: self.comm[p] for p in self.comm.clients}
+        proxies = {p: self.comm[p] for p in self.comm.modules}
 
         # execute it
         exec(script, proxies)

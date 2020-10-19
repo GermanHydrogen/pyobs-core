@@ -13,6 +13,7 @@ from pyobs.events import Event, LogEvent, ModuleOpenedEvent, ModuleClosedEvent
 from pyobs.events.event import EventFactory
 from .rpc import RPC
 from .xmppclient import XmppClient
+from ...modules import MultiModule
 
 log = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class XmppComm(Comm):
         self._connected = False
         self._command_handlers = {}
         self._event_handlers = {}
-        self._online_clients = []
+        self._available_modules = []
         self._user = user
         self._domain = domain
         self._resource = resource
@@ -91,8 +92,17 @@ class XmppComm(Comm):
 
         # add features
         if module:
-            for i in module.interfaces:
-                self._xmpp['xep_0030'].add_feature('pyobs:interface:%s' % i.__name__)
+            # single module or multi?
+            if isinstance(module, MultiModule):
+                # more than one module, loop them
+                for name, mod in module.modules.items():
+                    # add all interfaces
+                    for i in mod.interfaces:
+                        self._xmpp['xep_0030'].add_feature('pyobs:interface:%s:%s' % (name, i.__name__))
+            else:
+                # just add all interfaces
+                for i in module.interfaces:
+                    self._xmpp['xep_0030'].add_feature('pyobs:interface:%s' % i.__name__)
 
         # update RPC
         self._rpc.set_handler(module)
@@ -153,7 +163,7 @@ class XmppComm(Comm):
         Args:
             event: XMPP event.
         """
-        print('Authorization at server failed.')
+        log.error('Authorization at server failed.')
 
     def _get_full_client_name(self, name: str) -> str:
         """Builds full JID from a given username.
@@ -166,22 +176,36 @@ class XmppComm(Comm):
         """
         return name if '@' in name else '%s@%s/%s' % (name, self._domain, self._resource)
 
-    def get_interfaces(self, client: str) -> list:
-        """Returns list of interfaces for given client.
+    def get_interfaces(self, module: str) -> list:
+        """Returns list of interfaces for given module.
 
         Args:
-            client: Name of client.
+            module: Name of module.
 
         Returns:
             List of supported interfaces.
         """
+
+        # is this a sub-module?
+        if '.' in module:
+            # more than one?
+            if module.count('.') > 1:
+                raise ValueError('Module name can only contain one separator.')
+
+            # split module and client
+            client, module = module.split('.')
+
+        else:
+            # no, so module is 'main'
+            client = module
+            module = None
 
         # full JID given?
         if '@' not in client:
             client = '%s@%s/%s' % (client, self._domain, self._resource)
 
         # fetch interface names
-        interface_names = self._xmpp.get_interfaces(client)
+        interface_names = self._xmpp.get_interfaces(client, module)
         if interface_names is None:
             return None
 
@@ -200,18 +224,31 @@ class XmppComm(Comm):
         """
         return self._xmpp.supports_interface(self._get_full_client_name(client), interface)
 
-    def execute(self, client: str, method: str, *args) -> Any:
+    def execute(self, module: str, method: str, *args) -> Any:
         """Execute a given method on a remote client.
 
         Args:
-            client (str): ID of client.
+            module (str): ID of client.
             method (str): Method to call.
             *args: List of parameters for given method.
 
         Returns:
             Passes through return from method call.
         """
-        return self._rpc.call(self._get_full_client_name(client), method, *args)
+
+        # split jid and method
+        if '.' in module:
+            if module.count('.') > 1:
+                raise ValueError('Module name can only contain one separator.')
+            s = module.split('.')
+            jid = self._get_full_client_name(s[0])
+            method = s[1] + '.' + method
+        else:
+            # module is only jid
+            jid = self._get_full_client_name(module)
+
+        # call it
+        return self._rpc.call(jid, method, *args)
 
     def _got_online(self, msg):
         """If a new client connects, add it to list.
@@ -220,9 +257,14 @@ class XmppComm(Comm):
             msg: XMPP message.
         """
 
-        # append to list and send event
-        self._online_clients.append(msg['from'].full)
-        self._send_event_to_module(ClientConnectedEvent(), msg['from'].username)
+        # also add modules
+        for mod in self._xmpp.get_modules(msg['from'].username):
+            # add module
+            modname = '%s.%s' % (msg['from'].username, mod)
+            self._available_modules.append(modname)
+
+            # send event
+            self._send_event_to_module(ModuleOpenedEvent(), modname)
 
     def _got_offline(self, msg):
         """If a new client disconnects, remove it from list.
@@ -231,18 +273,29 @@ class XmppComm(Comm):
             msg: XMPP message.
         """
 
-        # remove from list and send event
-        self._online_clients.remove(msg['from'].full)
-        self._send_event_to_module(ClientDisconnectedEvent(), msg['from'].username)
+        # new list of modules
+        modules = []
+
+        # loop current ones
+        for mod in self._available_modules:
+            if mod.startswith(msg['from'].username + '.'):
+                # send event, don't add it to new list
+                self._send_event_to_module(ModuleClosedEvent(), mod)
+            else:
+                # add to new list
+                modules.append(mod)
+
+        # set new list
+        self._available_modules = modules
 
     @property
-    def clients(self):
+    def modules(self):
         """Returns list of currently connected clients.
 
         Returns:
             (list) List of currently connected clients.
         """
-        return [c[:c.find('@')] for c in self._online_clients]
+        return self._available_modules
 
     @property
     def client(self) -> XmppClient:

@@ -33,6 +33,7 @@ class XmppClient(sleekxmpp.ClientXMPP):
         self._auth_event = threading.Event()
         self._auth_success = False
         self._interface_cache = {}
+        self._disco_cache = {}
 
         # auto-accept invitations
         self.auto_authorize = True
@@ -55,35 +56,82 @@ class XmppClient(sleekxmpp.ClientXMPP):
         self.add_event_handler('auth_success', lambda ev: self._auth(True))
         self.add_event_handler('failed_auth', lambda ev: self._auth(False))
 
-    def get_interfaces(self, jid: str) -> List[str]:
+    def _get_disco_info(self, jid: str):
+        """Return disco info for given jid."""
+
+        # get disco info, is it in cache?
+        if jid not in self._disco_cache:
+            # request features
+            try:
+                # get info
+                info = self['xep_0030'].get_info(jid=self._jid(jid), cached=False)
+                if isinstance(info, sleekxmpp.stanza.iq.Iq):
+                    info = info['disco_info']
+
+                # store it
+                self._disco_cache[jid] = info.get_features()
+
+            except sleekxmpp.exceptions.IqError:
+                return None
+
+        # return it
+        return self._disco_cache[jid]
+
+    def get_modules(self, jid: str) -> List[str]:
+        """Get list of modules for given jid.
+
+        Args:
+            jid: JID to return modules for.
+
+        Returns:
+            List of modules.
+        """
+
+        # get disco info
+        info = self._get_disco_info(jid)
+
+        # get all interface definitions
+        prefix = 'pyobs:interface:'
+        defs = [i[len(prefix):] for i in info if i.startswith(prefix)]
+
+        # extract module names
+        modules = []
+        for d in defs:
+            if ':' in d:
+                modules.append(d.split(':')[0])
+        return list(sorted(set(modules)))
+
+    def _jid(self, name: str) -> str:
+        """Build full JID from username.
+
+        Args:
+            name: Username
+
+        Returns:
+            Full JID.
+        """
+        return '%s@%s/%s' % (name, self.boundjid.domain, self.boundjid.resource) if '@' not in name else name
+
+    def get_interfaces(self, jid: str, module: str = None) -> List[str]:
         """Return list of interfaces for the given JID.
 
         Args:
             jid: JID to get interfaces for.
+            module: Name of module.
 
         Returns:
             List of interface names
         """
 
-        # in cache?
-        if jid not in self._interface_cache:
-            # request features
-            try:
-                info = self['xep_0030'].get_info(jid=jid, cached=False)
-            except sleekxmpp.exceptions.IqError:
-                return None
+        # get disco info
+        info = self._get_disco_info(jid)
 
-            # extract pyobs interfaces
-            try:
-                if isinstance(info, sleekxmpp.stanza.iq.Iq):
-                    info = info['disco_info']
-                prefix = 'pyobs:interface:'
-                self._interface_cache[jid] = [i[len(prefix):] for i in info['features'] if i.startswith(prefix)]
-            except TypeError:
-                return None
+        # extract pyobs interfaces
+        prefix = 'pyobs:interface:' if module is None else 'pyobs:interface:%s:' % module
+        self._interface_cache[(jid, module)] = [i[len(prefix):] for i in info if i.startswith(prefix)]
 
         # return it
-        return self._interface_cache[jid]
+        return self._interface_cache[(jid, module)]
 
     def supports_interface(self, jid: str, interface) -> bool:
         """Checks, whether a client supports a given interface.

@@ -102,10 +102,8 @@ class Module:
         # closing event
         self.closing = threading.Event()
 
-        # connect comm module
+        # store comm module
         self.comm = comm
-        if comm:
-            self.comm.module = self
 
         # create vfs
         if vfs:

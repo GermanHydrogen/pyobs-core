@@ -89,38 +89,37 @@ class Comm:
         # this base class doesn't have short names
         return name
 
-    def __getitem__(self, client: str) -> Proxy:
-        """Get a proxy to the given client.
+    def __getitem__(self, module: str) -> Proxy:
+        """Get a proxy to the given module.
 
         Args:
-            client: Name of client.
+            module: Name of module.
 
         Returns:
-            Proxy class for given client.
+            Proxy class for given module.
         """
 
-        # return module, if "main" is requested
-        if client == 'main':
-            return self.module
-        if client is None:
+        # got anything?
+        if module is None:
             return None
 
-        # if client doesn't exist or we disabled caching, fetch a new proxy
-        if client not in self._proxies or not self._cache_proxies:
+        # if module doesn't exist or we disabled caching, fetch a new proxy
+        if module not in self._proxies or not self._cache_proxies:
             # get interfaces
-            interfaces = self.get_interfaces(client)
+            interfaces = self.get_interfaces(module)
             if interfaces is None:
                 return None
 
             # create new proxy
-            proxy = Proxy(self, client, interfaces)
-            self._proxies[client] = proxy
+            proxy = Proxy(self, module, interfaces)
+            self._proxies[module] = proxy
 
         # return proxy
-        return self._proxies[client]
+        return self._proxies[module]
 
     def proxy(self, name_or_object: Union[str, object], obj_type: Type = None):
-        """Returns object directly if it is of given type. Otherwise get proxy of client with given name and check type.
+        """Returns object directly if it is of given type. Otherwise get proxy for module with given
+        name and check type.
 
         If name_or_object is an object:
             - If it is of type (or derived), return object.
@@ -181,11 +180,11 @@ class Comm:
         raise NotImplementedError
 
     @property
-    def clients(self) -> list:
-        """Returns list of currently connected clients.
+    def modules(self) -> list:
+        """Returns list of currently available modules.
 
         Returns:
-            (list) List of currently connected clients.
+            (list) List of currently available modules.
         """
         raise NotImplementedError
 
@@ -198,13 +197,13 @@ class Comm:
         Returns:
             (list) List of currently connected clients that implement the given interface.
         """
-        return filter(lambda c: self._supports_interface(c, interface), self.clients)
+        return filter(lambda c: self._supports_interface(c, interface), self.modules)
 
-    def get_interfaces(self, client: str) -> list:
-        """Returns list of interfaces for given client.
+    def get_interfaces(self, module: str) -> list:
+        """Returns list of interfaces for given module.
 
         Args:
-            client: Name of client.
+            module: Name of module.
 
         Returns:
             List of supported interfaces.

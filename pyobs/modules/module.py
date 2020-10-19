@@ -1,7 +1,7 @@
 import inspect
 import logging
 import threading
-from typing import Union, Type, Any, Callable
+from typing import Union, Type, Any, Callable, Dict
 from py_expression_eval import Parser
 from astropy.coordinates import EarthLocation
 from astroplan import Observer
@@ -369,4 +369,19 @@ class Module:
             log.exception('Error on remote procedure call: %s' % str(e))
 
 
-__all__ = ['Module', 'timeout']
+class MultiModule(Module):
+    """Wrapper for running multiple modules in a single process."""
+
+    def __init__(self, modules: Dict[str, Union[Module, dict]], *args, **kwargs):
+        """Initializes a new pyobs multi module.
+
+        Args:
+            modules: Dictionary with modules
+        """
+        Module.__init__(self, name='multi', *args, **kwargs)
+
+        # modules
+        self._modules = modules
+
+
+__all__ = ['Module', 'MultiModule', 'timeout']

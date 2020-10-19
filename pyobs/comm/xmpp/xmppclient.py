@@ -97,8 +97,13 @@ class XmppClient(sleekxmpp.ClientXMPP):
         # extract module names
         modules = []
         for d in defs:
+            # do we have a module name in there?
             if ':' in d:
-                modules.append(d.split(':')[0])
+                # add jid to module name
+                modules.append(jid + '.' + d.split(':')[0])
+            else:
+                # just add jid
+                modules.append(jid)
         return list(sorted(set(modules)))
 
     def _jid(self, name: str) -> str:

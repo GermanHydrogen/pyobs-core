@@ -260,11 +260,10 @@ class XmppComm(Comm):
         # also add modules
         for mod in self._xmpp.get_modules(msg['from'].username):
             # add module
-            modname = '%s.%s' % (msg['from'].username, mod)
-            self._available_modules.append(modname)
+            self._available_modules.append(mod)
 
             # send event
-            self._send_event_to_module(ModuleOpenedEvent(), modname)
+            self._send_event_to_module(ModuleOpenedEvent(), mod)
 
     def _got_offline(self, msg):
         """If a new client disconnects, remove it from list.

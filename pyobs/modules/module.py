@@ -422,6 +422,10 @@ class MultiModule(Module):
         # close base
         Module.close(self)
 
+    @property
+    def modules(self):
+        return self._modules
+
     def __contains__(self, name: str) -> bool:
         """Checks, whether this multi-module contains a module of given name."""
         return name in self._modules
@@ -430,5 +434,13 @@ class MultiModule(Module):
         """Returns module of given name."""
         return self._modules[name]
 
+    @property
+    def methods(self):
+        """List of methods."""
+        methods = {}
+        for name, mod in self._modules.items():
+            for funcname, method in mod.methods.items():
+                methods[name + '.' + funcname] = method
+        return methods
 
 __all__ = ['Module', 'MultiModule', 'timeout']

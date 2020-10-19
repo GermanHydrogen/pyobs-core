@@ -9,9 +9,7 @@ from sleekxmpp.xmlstream import ET
 import xml.sax.saxutils
 
 from pyobs.comm import Comm
-from pyobs.events import Event, LogEvent
-from pyobs.events.clientconnected import ClientConnectedEvent
-from pyobs.events.clientdisconnected import ClientDisconnectedEvent
+from pyobs.events import Event, LogEvent, ModuleOpenedEvent, ModuleClosedEvent
 from pyobs.events.event import EventFactory
 from .rpc import RPC
 from .xmppclient import XmppClient

@@ -1,3 +1,1 @@
-from .xmppcomm import XmppComm
-
-__all__ = ['XmppComm']
+from pyobs.comm.sleekxmpp import *

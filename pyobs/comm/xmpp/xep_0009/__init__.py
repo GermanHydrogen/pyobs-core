@@ -1,4 +1,1 @@
-from sleekxmpp.plugins.base import register_plugin
-from .rpc import XEP_0009
-
-register_plugin(XEP_0009)
+from pyobs.comm.sleekxmpp.xep_0009_timeout import *

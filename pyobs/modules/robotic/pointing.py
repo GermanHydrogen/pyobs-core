@@ -1,6 +1,6 @@
 import logging
 import random
-from typing import Tuple
+from typing import Tuple, List
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,9 @@ import astropy.units as u
 
 from pyobs.modules import Module
 from pyobs.comm import InvocationException
-from pyobs.interfaces import IAcquisition, IAutonomous, ITelescope
+from pyobs.interfaces import IAcquisition, IAutonomous, ITelescope, ICamera, ICameraExposureTime, ICameraBinning, \
+    IImageType
+from pyobs.utils.enums import ImageType
 from pyobs.utils.time import Time
 
 log = logging.getLogger(__name__)
@@ -22,7 +24,9 @@ class PointingSeries(Module, IAutonomous):
     def __init__(self, alt_range: Tuple[float, float] = (30., 85.), num_alt: int = 8,
                  az_range: Tuple[float, float] = (0., 360.), num_az: int = 24,
                  dec_range: Tuple[float, float] = (-80., 80.), min_moon_dist: float = 15., finish: int = 90,
-                 exp_time: float = 1., acquisition: str = 'acquisition', telescope: str = 'telescope',
+                 randomize: bool = True, two_way: bool = False,
+                 exp_time: float = 1., acquisition: str = None, telescope: str = 'telescope',
+                 cameras: List[str] = None, acquire: bool = True, broadcast: bool = True, write_to: str = None,
                  *args, **kwargs):
         """Initialize a new auto focus system.
 
@@ -34,9 +38,16 @@ class PointingSeries(Module, IAutonomous):
             dec_range: Range in declination in degrees to use.
             min_moon_dist: Minimum moon distance in degrees.
             finish: When this number in percent of points have been finished, terminate mastermind.
+            randomize: Randomize grid points.
+            two_way: Only used, if randomize=False. Iterate all grid points again in reverse order.
             exp_time: Exposure time in secs.
             acquisition: IAcquisition unit to use.
             telescope: ITelescope unit to use.
+            cameras: List of cameras to take images with.
+            acquire: If True, the given acquisition module is used for fine-acquisition. Otherwise only images are
+                taken with the given cameras.
+            broadcast: Whether to broadcast new images.
+            write_to: Write all images to this directory.
         """
         Module.__init__(self, *args, **kwargs)
 
@@ -48,9 +59,15 @@ class PointingSeries(Module, IAutonomous):
         self._dec_range = dec_range
         self._min_moon_dist = min_moon_dist
         self._finish = 1. - finish / 100.
+        self._randomize = randomize
+        self._two_way = two_way
         self._exp_time = exp_time
         self._acquisition = acquisition
         self._telescope = telescope
+        self._cameras = [] if cameras is None else cameras
+        self._acquire = acquire
+        self._broadcast = broadcast
+        self._write_to = write_to
 
         # if Az range is [0, 360], we got north double, so remove one step
         if self._az_range == (0., 360.):
@@ -75,19 +92,35 @@ class PointingSeries(Module, IAutonomous):
         """Run a pointing series."""
 
         # create grid
-        grid = {'alt': [], 'az': [], 'done': []}
+        grid = []
         for az in np.linspace(self._az_range[0], self._az_range[1], self._num_az):
             for alt in np.linspace(self._alt_range[0], self._alt_range[1], self._num_alt):
-                grid['alt'] += [alt]
-                grid['az'] += [az]
-                grid['done'] += [False]
+                grid.append((alt, az))
+
+        # randomize?
+        if self._randomize:
+            random.shuffle(grid)
+        else:
+            # two way? only if not randomizing.
+            if self._two_way:
+                grid += reversed(grid)
 
         # to dataframe
         grid = pd.DataFrame(grid).set_index(['alt', 'az'])
 
-        # get acquisition and telescope units
-        acquisition: IAcquisition = self.proxy(self._acquisition, IAcquisition)
+        # get telescope and acqusition or camera modules
         telescope: ITelescope = self.proxy(self._telescope, ITelescope)
+        acquisition: IAcquisition = self.proxy(self._acquisition, IAcquisition) if self._acquisition else None
+        cameras = [self.proxy(c, ICamera) for c in self._cameras]
+        
+        # set cameras
+        for cam in cameras:
+            if isinstance(cam, ICameraExposureTime):
+                cam.set_exposure_time(self._exp_time)
+            if isinstance(cam, ICameraBinning):
+                cam.set_binning(2, 2)
+            if isinstance(cam, IImageType):
+                cam.set_image_type(ImageType.OBJECT)
 
         # loop until finished
         while not self.closing.is_set():

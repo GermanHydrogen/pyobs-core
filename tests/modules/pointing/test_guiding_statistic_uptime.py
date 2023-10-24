@@ -14,7 +14,7 @@ def test_end_to_end():
 
     header = statistic.add_to_header(client, {})
 
-    assert header["GUIDING UPTIME"] == (100.0, "Percentage of exposure time the guiding was closed.")
+    assert header["GUIDING UPTIME"] == (100.0, "Time the guiding loop was closed [%]")
 
 
 def test_calc_uptime_percentage():

@@ -1,0 +1,48 @@
+{include _environment.yaml}
+
+class: pyobs.modules.MultiModule
+
+
+shared:
+    world:
+        class: pyobs.utils.simulation.SimWorld
+        time: "2020-10-21 22:00:00"
+
+        camera:
+            class: pyobs.utils.simulation.SimCamera
+            image_size:
+                - 1024
+                - 1024
+            seeing: 1.0
+
+
+modules:
+    camera:
+        class: pyobs.modules.camera.DummyCamera
+
+        comm:
+            class: pyobs.comm.local.LocalComm
+            name: "camera"
+
+    tester:
+        class: pyobs.modules.test.moduletester.ModuleTester
+        tests:
+            - module_name: "camera"
+              interface: "IExposureTime"
+              method: "set_exposure_time"
+              method_args:
+                exposure_time: 10.0
+              return_value: "None"
+              test_name: "Set Exposure Time"
+
+            - module_name: "camera"
+              interface: "IExposureTime"
+              method: "get_exposure_time"
+              method_args: {}
+              return_value: "10.0"
+              test_name: "Get Exposure Time"
+
+
+        comm:
+            class: pyobs.comm.local.LocalComm
+            name: "tester"

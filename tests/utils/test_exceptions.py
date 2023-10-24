@@ -30,7 +30,8 @@ def test_empty() -> None:
     assert len(exc._handlers) == 0
 
 
-def test_callback() -> None:
+@pytest.mark.asyncio
+async def test_callback() -> None:
     event = asyncio.Event()
 
     async def cb(exception: PyObsError) -> None:
@@ -53,7 +54,8 @@ def test_callback() -> None:
     assert event.is_set() is True
 
 
-def test_raise() -> None:
+@pytest.mark.asyncio
+async def test_raise() -> None:
     event = asyncio.Event()
 
     async def cb(exception: PyObsError) -> None:
@@ -68,13 +70,14 @@ def test_raise() -> None:
 
     # 2nd raises SevereError
     with pytest.raises(exc.SevereError) as exc_info:
-        raise exc.MotionError()
+        exc.MotionError()
 
     # nested exception is MotionError
     assert isinstance(exc_info.value, exc.SevereError)
     assert isinstance(exc_info.value.exception, exc.MotionError)
 
 
+@pytest.mark.asyncio
 async def test_timespan() -> None:
     event = asyncio.Event()
 

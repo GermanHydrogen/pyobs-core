@@ -6,6 +6,7 @@ from pyobs.utils.skyflats.priorities import ConstSkyflatPriorities
 from pyobs.utils.time import Time
 
 
+@pytest.mark.asyncio
 async def test_scheduler():
     # init observer and time
     observer = Observer.at_site("SAAO")

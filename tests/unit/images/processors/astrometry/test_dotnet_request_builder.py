@@ -1,5 +1,5 @@
 from pyobs.images.processors.astrometry._dotnet_request_builder import _DotNetRequestBuilder
-from tests.images.processors.astrometry.test_dotnet import mock_catalog
+from tests.unit.images.processors.astrometry.test_dotnet import mock_catalog
 
 
 def test_filter_catalog():

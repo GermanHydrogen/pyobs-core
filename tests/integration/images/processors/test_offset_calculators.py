@@ -29,3 +29,18 @@ async def test_projected(test_images: Tuple[Image, Image]) -> None:
     pixel_offset = result.get_meta(PixelOffsets)
     np.testing.assert_almost_equal(pixel_offset.dy, 1.0, 0)
     np.testing.assert_almost_equal(pixel_offset.dx, 0.0, 0)
+
+
+async def test_astrometry(test_images: Tuple[Image, Image]) -> None:
+    """
+    Test image includes header from astrometry.net
+    """
+    ref_image, test_image = test_images
+    calculator = AstrometryOffsets()
+
+    result = await calculator(ref_image)
+
+    pixel_offset = result.get_meta(PixelOffsets)
+    np.testing.assert_almost_equal(pixel_offset.dy, 5603.603992688688)
+    np.testing.assert_almost_equal(pixel_offset.dx, -1176.2827278126224)
+

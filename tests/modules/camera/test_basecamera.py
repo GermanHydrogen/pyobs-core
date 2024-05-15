@@ -100,34 +100,55 @@ async def test_add_fits_headers():
 
 
 @pytest.mark.asyncio
-async def test_trimsec():
-    # create camera, no need for opening it
-    camera = DummyCamera()
-    await camera.open()
-
-    # define full frame
+async def test_trimsec_full_image() -> None:
     full = {"left": 50, "width": 100, "top": 0, "height": 100}
 
     # image covering the whole data area
     hdr = fits.Header({"NAXIS1": 100, "NAXIS2": 100, "XORGSUBF": 50, "YORGSUBF": 0, "XBINNING": 1, "YBINNING": 1})
-    camera.set_biassec_trimsec(hdr, **full)
+    DummyCamera.set_biassec_trimsec(hdr, **full)
     assert "BIASSEC" not in hdr
     assert "[1:100,1:100]" == hdr["TRIMSEC"]
 
+
+@pytest.mark.asyncio
+async def test_trimsec_full_bias() -> None:
+    full = {"left": 50, "width": 100, "top": 0, "height": 100}
+
     # image covering the whole bias area
     hdr = fits.Header({"NAXIS1": 50, "NAXIS2": 100, "XORGSUBF": 0, "YORGSUBF": 0, "XBINNING": 1, "YBINNING": 1})
-    camera.set_biassec_trimsec(hdr, **full)
+    DummyCamera.set_biassec_trimsec(hdr, **full)
     assert "[1:50,1:100]" == hdr["BIASSEC"]
     assert "TRIMSEC" not in hdr
 
+
+@pytest.mark.asyncio
+async def test_trimsec_half_image() -> None:
+    full = {"left": 50, "width": 100, "top": 0, "height": 100}
+
     # half in both
     hdr = fits.Header({"NAXIS1": 50, "NAXIS2": 100, "XORGSUBF": 25, "YORGSUBF": 0, "XBINNING": 1, "YBINNING": 1})
-    camera.set_biassec_trimsec(hdr, **full)
+    DummyCamera.set_biassec_trimsec(hdr, **full)
     assert "[1:25,1:100]" == hdr["BIASSEC"]
     assert "[26:50,1:100]" == hdr["TRIMSEC"]
 
+
+@pytest.mark.asyncio
+async def test_trimsec_binning() -> None:
+    full = {"left": 50, "width": 100, "top": 0, "height": 100}
+
     # same with binning
     hdr = fits.Header({"NAXIS1": 40, "NAXIS2": 50, "XORGSUBF": 10, "YORGSUBF": 0, "XBINNING": 2, "YBINNING": 2})
-    camera.set_biassec_trimsec(hdr, **full)
+    DummyCamera.set_biassec_trimsec(hdr, **full)
     assert "[1:20,1:50]" == hdr["BIASSEC"]
     assert "[21:40,1:50]" == hdr["TRIMSEC"]
+
+
+@pytest.mark.asyncio
+async def test_trimsec_both_axis() -> None:
+    full = {"left": 50, "width": 100, "top": 50, "height": 100}
+
+    # image covering the whole data area
+    hdr = fits.Header({"NAXIS1": 100, "NAXIS2": 100, "XORGSUBF": 0, "YORGSUBF": 0, "XBINNING": 1, "YBINNING": 1})
+    DummyCamera.set_biassec_trimsec(hdr, **full)
+    assert "BIASSEC" not in hdr
+    assert "TRIMSSEC" not in hdr
